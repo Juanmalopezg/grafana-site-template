@@ -1,0 +1,50 @@
+services:
+  grafana:
+    image: grafana/grafana-oss
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_storage:/var/lib/grafana
+  loki:
+    image: grafana/loki:2.9.5
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./grafana/loki-config.yaml:/etc/loki/local-config.yaml
+    ports:
+      - 3100:3100
+  promtail:
+    image: grafana/promtail:2.9.5
+    container_name: promtail
+    volumes:
+      - ./logs:/var/log/nginx
+      - ./grafana/promtail-config.yaml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+  nginx:
+    image: nginx
+    container_name: nginx
+    volumes:
+      - ./logs:/var/log/nginx
+      - ./nginx/templates:/etc/nginx/templates
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd
+      - ./nginx/geodata:/etc/nginx/geodata
+      - ./html:/usr/share/nginx/html
+      - ./certbot/www/:/var/www/certbot/:ro
+      - ./certbot/conf/:/etc/nginx/ssl/:ro
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      - NGINX_HOST=${DOMAIN_NAME}
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www/:/var/www/certbot/:rw
+      - ./certbot/conf/:/etc/letsencrypt/:rw
+volumes:
+  grafana_storage: {}
+networks:
+  grafana:
